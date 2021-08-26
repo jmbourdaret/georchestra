@@ -1,0 +1,58 @@
+name: "mapfishapp GN4 integration"
+on:
+  push:
+    paths:
+      - "commons/**"
+      - "mapfishapp/**"
+  pull_request:
+    paths:
+      - "commons/**"
+      - "mapfishapp/**"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+    - name: "Checking out"
+      uses: actions/checkout@v1
+
+    - name: "Checking out submodules"
+      uses: textbook/git-checkout-submodule-action@2.0.0
+
+    - name: "Setting up Java"
+      uses: actions/setup-java@v1
+      with:
+        java-version: '8.x'
+
+    - name: "Configuring Maven"
+      run: |
+          mkdir -p $HOME/.m2
+          cp .github/resources/m2-settings.xml $HOME/.m2/settings.xml
+
+    - name: "Maven repository caching"
+      uses: actions/cache@v1
+      with:
+        path: ~/.m2/repository
+        key: ${{ runner.os }}-maven-${{ hashFiles('**/pom.xml') }}
+        restore-keys: |
+          ${{ runner.os }}-maven-
+
+    - name: "Installing & checking formatting"
+      run: ./mvnw --no-transfer-progress -B -P-all,mapfishapp,docker -Dfmt.action=validate install docker:build -Dadditionalparam=-Xdoclint:none -DskipTests -DdockerImageName=georchestra/mapfishapp:gn4-csw-mapfishapp
+
+    - name: "Logging in docker.io"
+      if: github.repository == 'georchestra/georchestra'
+      uses: azure/docker-login@v1
+      with:
+        username: '${{ secrets.DOCKER_HUB_USERNAME }}'
+        password: '${{ secrets.DOCKER_HUB_PASSWORD }}'
+
+    - name: "Pushing image to docker.io"
+      if: github.ref == 'refs/heads/gn4-csw-mapfishapp' && github.repository == 'georchestra/georchestra'
+      run: |
+        docker push georchestra/mapfishapp:gn4-csw-mapfishapp
+
+    - name: "Remove SNAPSHOT jars from repository"
+      run: |
+        find .m2/repository -name "*SNAPSHOT*" -type d | xargs rm -rf {}
