@@ -25,7 +25,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-
+import static org.assertj.core.api.Assertions.assertThat;
 import java.net.URI;
 import java.net.URISyntaxException;
 
@@ -125,5 +125,19 @@ public class GeorchestraTemplateMapperTest {
         String defaultTemplateRecord = mapper.loadDefaultTemplateRecord();
         String loaded = mapper.loadTemplateRecord();
         assertEquals(defaultTemplateRecord, loaded);
+    }
+
+    /**
+     * Test that the resourceType is effectively ported. see https://github.com/georchestra/georchestra/issues/3627
+     * also, this depends on georchestra/datadir
+     * @throws URISyntaxException
+     */
+    @Test
+    public void templateWith_Dataset_ResourceType_ShouldNotReturn_Series_Dataset() throws URISyntaxException {
+        config.setTemplateRecord(   getClass().getResource("metadata_template.xml").toURI());
+        config.setTemplateTransform(getClass().getResource("metadata_transform.xsl").toURI());
+
+        String loaded = mapper.loadTemplateRecord();
+        assertThat(loaded).contains("codeList=\"http://standards.iso.org/iso/19139/resources/gmxCodelists.xml#MD_ScopeCode\" codeListValue=\"testResourceType\"");
     }
 }
